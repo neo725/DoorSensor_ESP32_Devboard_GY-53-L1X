@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 #include <Wire.h>
+#include <SPI.h>
 #include <ThreadController.h>
+#include <WiFi.h>
 
 #include "RangeSensorThreadClass.h"
 // #include "range_read.h"
@@ -14,6 +16,8 @@
 
 /*
 NodeMCU-32S (ESP-WROOM-32)
+NodeMCU-32S DevBoard
+
 GY-53-L1X ToF 紅外測距模組 * 2
 I2C 0.96 OLED 顯示模組 * 1
 
@@ -36,52 +40,90 @@ SSD1306Wire display(0x3C, SDA, SCL);
 int max_range_in_mm = 0;
 //int8_t currentSensorIndex = 0;
 
-void drawText(String text) {
-    display.setTextAlignment(TEXT_ALIGN_LEFT);
+// WiFi Setting in Header file (main.h)   // the Wifi radio's status
 
-    display.setFont(ArialMT_Plain_10);
-    display.drawString(0, 0, text);
+// void drawText(int16_t x, int16_t y, String text){
+//   //display.setTextAlignment(TEXT_ALIGN_LEFT);
+
+//   //display.setFont(ArialMT_Plain_10);
+//   display.drawString(x, y, text);
+// }
+
+void clearDisplay() {
+  display.clear();
+}
+void drawText(uint16_t rowIndex, int16_t columnIndex, String text) {
+  int16_t x = columnIndex * 50;
+  int16_t y = rowIndex * 10;
+
+  // display.drawString(x, 50, "WIFI : " + String(WIFI_CONNECTED));
+  //drawText(x, y, text);
+  display.drawString(x, y, text);
 }
 
-void drawSensor(SensorResult sensor, uint8_t columnIndex = 1) {
-  // void drawSensor(RangeThreadClass sensor) {
-    // Font Demo1
+void drawText(String text) {
+  drawText(0, 0, text);
+}
 
-    int16_t x = (columnIndex - 1) * 50;
-    
+// void drawString(uint16_t rowIndex = 0, int16_t columnIndex = 0, bool text) {
+//   drawText(rowIndex, columnIndex, String(text));
+// }
+
+// void drawString(uint16_t rowIndex = 0, int16_t columnIndex = 0, int16_t text) {
+//   drawText(rowIndex, columnIndex, String(text));
+// }
+
+// void drawString(uint16_t rowIndex = 0, int16_t columnIndex = 0, int8_t text) {
+//   drawText(rowIndex, columnIndex, String(text));
+// }
+
+void drawSensor(SensorResult sensor, int16_t columnIndex = 0) {
     // create more fonts at http://oleddisplay.squix.ch/
     display.setTextAlignment(TEXT_ALIGN_LEFT);
+    
+    int16_t x = 0;
 
-    // display.setFont(ArialMT_Plain_10);
-    // String is_ready = sensor.Ready ? "Ready" : "Not Ready !!";
+    if (columnIndex > 1) {
+      display.setFont(ArialMT_Plain_10);
+      String range_in_mm = (String)sensor.range_in_mm;
+      //String range_in_mm = (String)sensor.RangeInMM;
+      range_in_mm = String(columnIndex) + " : " + range_in_mm;
+
+      drawText(0, columnIndex, range_in_mm);
+    }
+
+    // String is_ready = sensor.ready ? "Ready" : "Not Ready !!";
     // is_ready = "0 : " + is_ready;
-    // display.drawString(0, 0, is_ready);
+    // drawString(sensor, 0, 0, is_ready);
 
     display.setFont(ArialMT_Plain_10);
     String range_in_mm = (String)sensor.range_in_mm;
     //String range_in_mm = (String)sensor.RangeInMM;
     range_in_mm = "1 : " + range_in_mm;
-    display.drawString(x, 10, range_in_mm);
+    drawText(x, 1, range_in_mm);
 
     //display.setFont(ArialMT_Plain_16);
     display.setFont(ArialMT_Plain_10);
     String measurement_level = (String)sensor.measurement_level;
     // String measurement_level = (String)sensor.MeasurementLevel;
     measurement_level = "2 : " + measurement_level;
-    display.drawString(x, 20, measurement_level);
+    drawText(x, 2, measurement_level);
 
     //display.setFont(ArialMT_Plain_24);
     display.setFont(ArialMT_Plain_10);
     String measurement_mode = (String)sensor.measurement_mode;
     // String measurement_mode = (String)sensor.MeasurementMode;
     measurement_mode = "3 : " + measurement_mode;
-    display.drawString(x, 30, measurement_mode);
+    drawText(x, 3, measurement_mode);
 
     display.setFont(ArialMT_Plain_10);
     String range_status = (String)sensor.range_status;
     // String range_status = (String)sensor.RangeStatus;
     range_status = "4 : " + range_status;
-    display.drawString(x, 40, range_status);
+    display.drawString(x, 4, range_status);
+
+
+    //display.drawString(x, 50, "WIFI : " + String(WIFI_CONNECTED));
 }
 
 void timerCallback() {
@@ -92,6 +134,8 @@ void setup() {
   Serial.begin(115200);
 
   while (!Serial) delay(1);
+
+  delay(10);
 
   Serial.setDebugOutput(true);
 
@@ -129,6 +173,28 @@ void setup() {
 
   drawText("Waiting...");
 
+// // check for the presence of the shield:
+//   if (WiFi.status() == WL_NO_SHIELD) {
+//     Serial.println("WiFi shield not present");
+//     // don't continue:
+//     while (true);
+//   }
+
+  // String fv = WiFi.firmwareVersion();
+  // if (fv != "1.1.0") {
+  //   Serial.println("Please upgrade the firmware");
+  // }
+
+  // // attempt to connect to Wifi network:
+  // while (status != WL_CONNECTED) {
+  //   Serial.print("Attempting to connect to WPA SSID: ");
+  //   Serial.println(ssid);
+  //   // Connect to WPA/WPA2 network:
+  //   status = WiFi.begin(ssid, pass);
+
+  //   WIFI_CONNECTED = true;
+
+  //   // wait 10 seconds for connection:
   Serial.println("[Setup] Power up delay...");
   delay(POWER_UP_DELAY);
   Serial.println("[Setup] Power up delay ready !");
@@ -144,7 +210,17 @@ void setup() {
 	// Timer1.initialize(20000);
 	// Timer1.attachInterrupt(timerCallback);
 	// Timer1.start();
-  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+  }
+  // Serial.println("");
+  // Serial.println("WiFi connected");
+  // Serial.println("IP address: ");
+  // Serial.println(WiFi.localIP());
+
+  drawText(0, 5, "WIFI : " + String(ssid) + ", IP : " + WiFi.localIP());
 }
 
 void loop() {

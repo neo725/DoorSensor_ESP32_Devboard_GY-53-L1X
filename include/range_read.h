@@ -20,6 +20,8 @@ typedef struct MeansurementResult {
     int measurement_mode;
     int range_status;
 
+    bool ready;
+
     uint8_t value;
 } SensorResult;
 
